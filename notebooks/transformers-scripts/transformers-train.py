@@ -22,7 +22,6 @@ tqdm_auto.tqdm = nop_tqdm_off  # For download, completely disable progress bars:
 old_tqdm = tqdm.tqdm
 def nop_tqdm(*a, **k):
     k['ncols'] = 0
-    k['file'] = sys.stdout
     return old_tqdm(*a, **k)
 tqdm.tqdm=nop_tqdm
 
@@ -30,7 +29,6 @@ tqdm.tqdm=nop_tqdm
 old_trange = tqdm.trange
 def nop_trange(*a, **k):
     k['ncols'] = 0
-    k['file'] = sys.stdout
     return old_trange(*a, **k)
 tqdm.trange=nop_trange
 #### End of quiet tqdm ####
@@ -73,7 +71,7 @@ if __name__ == "__main__":
 
         # (Train + evaluate) requested
         if args.dev != "":
-            cmd_opts += ["--do_eval"] #, "--evaluate_during_train"]
+            cmd_opts += ["--do_eval", "--evaluate_during_train"]
             try:
                 os.link(
                     os.path.join(args.dev, "dev.txt"), os.path.join(args.train, "dev.txt")
