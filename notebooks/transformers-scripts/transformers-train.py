@@ -4,21 +4,34 @@ import sys
 from pathlib import Path
 
 #### Make tqdm more quiet ####
-# This stanza must be before import run_ner or any module that uses tqdm.
+# This stanza must appear before `import run_ner` or any module that uses tqdm.
 # https://github.com/tqdm/tqdm/issues/619#issuecomment-425234504
 import tqdm
+
+# This doesn't work, and left here as trail, even if transformers/file_utils.py indicates so.
+#import logging
+#logging.getLogger('transformers.file_utils').setLevel(logging.NOTSET)
+from tqdm import auto as tqdm_auto  # Used by transformers's model downloader (transformers/file_utils.py:http_get)
+old_auto_tqdm = tqdm_auto.tqdm
+def nop_tqdm_off(*a, **k):
+    k['disable'] = True
+    return old_auto_tqdm(*a, **k)
+tqdm_auto.tqdm = nop_tqdm_off  # For download, completely disable progress bars: large models, lots of stuffs printed.
+
+# Used by run_ner.py
 old_tqdm = tqdm.tqdm
-old_trange = tqdm.trange
 def nop_tqdm(*a, **k):
     k['ncols'] = 0
     k['file'] = sys.stdout
     return old_tqdm(*a, **k)
+tqdm.tqdm=nop_tqdm
 
+# Used by run_ner.py
+old_trange = tqdm.trange
 def nop_trange(*a, **k):
     k['ncols'] = 0
     k['file'] = sys.stdout
     return old_trange(*a, **k)
-tqdm.tqdm=nop_tqdm
 tqdm.trange=nop_trange
 #### End of quiet tqdm ####
 
