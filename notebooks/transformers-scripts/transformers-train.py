@@ -3,6 +3,25 @@ import os
 import sys
 from pathlib import Path
 
+#### Make tqdm more quiet ####
+# This stanza must be before import run_ner or any module that uses tqdm.
+# https://github.com/tqdm/tqdm/issues/619#issuecomment-425234504
+import tqdm
+old_tqdm = tqdm.tqdm
+old_trange = tqdm.trange
+def nop_tqdm(*a, **k):
+    k['ncols'] = 0
+    k['file'] = sys.stdout
+    return old_tqdm(*a, **k)
+
+def nop_trange(*a, **k):
+    k['ncols'] = 0
+    k['file'] = sys.stdout
+    return old_trange(*a, **k)
+tqdm.tqdm=nop_tqdm
+tqdm.trange=nop_trange
+#### End of quiet tqdm ####
+
 import run_ner
 
 
@@ -41,10 +60,13 @@ if __name__ == "__main__":
 
         # (Train + evaluate) requested
         if args.dev != "":
-            cmd_opts += ["--do_eval", "--evaluate_during_train"]
-            os.link(
-                os.path.join(args.dev, "dev.txt"), os.path.join(args.train, "dev.txt")
-            )  # Copy (by hard link) the dev data to match with what run_ner.py expects.
+            cmd_opts += ["--do_eval"] #, "--evaluate_during_train"]
+            try:
+                os.link(
+                    os.path.join(args.dev, "dev.txt"), os.path.join(args.train, "dev.txt")
+                )  # Copy (by hard link) the dev data to match with what run_ner.py expects.
+            except FileExistsError:
+                print(os.path.join(args.dev, "dev.txt"), ' already exists; skip hard linking')
 
         label = ["--label", os.path.join(args.label, "label.txt")] if args.label else []
         model_dir = ("--output_dir", args.model_dir)
