@@ -1,5 +1,10 @@
+import pip
+import xmlrpc.client
 import s3fs
 
+################################################################################
+# Data splits
+################################################################################
 # Default
 _fs = s3fs.S3FileSystem(anon=False)
 
@@ -25,3 +30,11 @@ def sentences(f):
         else:
             sentence.append(line)
     yield sentence
+
+
+################################################################################
+# Package versions
+################################################################################
+def get_latest_version(name: str) -> str:
+    pypi = xmlrpc.client.ServerProxy('https://pypi.python.org/pypi')
+    return pypi.package_releases('transformers')[0]
