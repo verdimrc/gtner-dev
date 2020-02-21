@@ -22,8 +22,8 @@ try:
             _line.format(os.path.join(_git_root, "src")),  # GIT_ROOT/src
             _line.format(os.path.join(_git_root, "notebooks")),  # GIT_ROOT/notebooks
         ]
-except:
+except:  # noqa: E722
     pass
 
-c.InteractiveShellApp.exec_lines = _pythonpath
+c.InteractiveShellApp.exec_lines = _pythonpath  # type: ignore # noqa: F821
 ####################################################################################################
