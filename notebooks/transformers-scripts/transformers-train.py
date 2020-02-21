@@ -1,67 +1,56 @@
 import argparse
 import os
+import sys
 from pathlib import Path
 
-
-def parse_hyperparameters(hm):
-    """Convert list of ['--name', 'value', ...] to { 'name': value}, where 'value' is converted to the nearest data type.
-
-    Conversion follows the principle: "if it looks like a duck and quacks like a duck, then it must be a duck".
-    """
-    d = {}
-
-    it = iter(hm)
-    try:
-        while True:
-            key = next(it)[2:]
-            value = next(it)
-            d[key] = value
-    except StopIteration:
-        pass
-
-    # Infer data types.
-    dd = {k: infer_dtype(v) for k, v in d.items()}
-    return dd
-
-
-def infer_dtype(s):
-    """Auto-cast string values to nearest matching datatype.
-
-    Conversion follows the principle: "if it looks like a duck and quacks like a duck, then it must be a duck".
-
-    Note that python 3.6 implements PEP-515 which allows '_' as thousand separators. Hence, on Python 3.6,
-    '1_000' is a valid number and will be converted accordingly.
-    """
-    if s == "None":
-        return None
-    if s == "True":
-        return True
-    if s == "False":
-        return False
-
-    try:
-        i = float(s)
-        if ("." in s) or ("e" in s.lower()):
-            return i
-        else:
-            return int(s)
-    except:  # noqa:E722
-        pass
-
-    return s
+import run_ner
 
 
 def assert_train_args(args):
-    ...
+    locked_args = {"--do_train", "--do-eval", "--evaluate_during_train", "--data_dir", "--output_dir", "--label"}
+    violation = {s for s in args if s[0] == "-"} & locked_args
+    if len(violation) > 0:
+        raise ValueError(f"Error: overriden args {violation} in locked args {locked_args}")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # Minimum args according to SageMaker protocol.
-    parser.add_argument("--model_dir", type=Path, default=os.environ.get("SM_MODEL_DIR", "model"))
-    parser.add_argument("--train", type=Path, default=os.environ.get("SM_CHANNEL_TRAIN", "train"))
-    parser.add_argument("--test", type=Path, default=os.environ.get("SM_CHANNEL_TEST", "test"))
+    parser.add_argument("--model_dir", default=os.environ.get("SM_MODEL_DIR", "model"))
+    parser.add_argument("--train", default=os.environ.get("SM_CHANNEL_TRAIN", "train"))
+    parser.add_argument("--dev", default=os.environ.get("SM_CHANNEL_DEV", ""))
+    parser.add_argument("--label", default=os.environ.get("SM_CHANNEL_LABEL", None))
+    # Rename "-h" flag for run_ner.py
+    parser.add_argument("--train-help", action="store_true")
 
     args, train_args = parser.parse_known_args()
 
-    ...
+    # Patch CLI args to pass down to run_ner.py.
+    if args.train_help:
+        # Note the argparse -h behavior: run_ner.main() will show help, then exit!
+        sys.argv = ["run_ner.py", "-h"]
+    else:
+        assert_train_args(train_args)
+        cmd_opts = ["run_ner.py", "--do_train"]
+
+        # run_ner.py expects `data_dir` to contain these files:
+        # - train.txt: mandatory for --do_train
+        # - dev.txt: mandatory for either --do_eval or --evaluate_during_train
+        # - test.txt: mandatory for --do_predict (which is unsupported by this script)
+        data_dir = ("--data_dir", args.train)
+
+        # (Train + evaluate) requested
+        if args.dev != "":
+            cmd_opts += ["--do-eval", "--evaluate_during_train"]
+            os.link(
+                os.path.join(args.dev, "dev.txt"), os.path.join(args.train, "dev.txt")
+            )  # Copy (by hard link) the dev data to match with what run_ner.py expects.
+
+        label = ["--label", args.label] if args.label else []
+        model_dir = ("--output_dir", args.model_dir)
+
+        # Recommended additional args: --model_type, --model_name_or_path, --num_train_epochs
+        sys.argv = [*cmd_opts, *data_dir, *model_dir, *label, *train_args]
+
+    print(sys.argv)
+    run_ner.main()

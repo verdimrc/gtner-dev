@@ -64,9 +64,10 @@ def infer_dtype(s):
 
 
 def assert_train_args(args):
-    overriden_args = set(args) & {"lang", "pipeline", "output_path", "train_path", "dev_path"}
-    if len(overriden_args) > 0:
-        raise ValueError("Error: overriden args", overriden_args)
+    locked_args = {"lang", "pipeline", "output_path", "train_path", "dev_path"}
+    violation = set(args) & locked_args
+    if len(violation) > 0:
+        raise ValueError(f"Error: overriden args {violation} in locked args {locked_args}")
 
 
 if __name__ == "__main__":

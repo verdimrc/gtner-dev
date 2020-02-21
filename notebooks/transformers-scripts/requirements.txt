@@ -1,2 +1,2 @@
-transformers
+transformers==2.5.0
 tensorboard
