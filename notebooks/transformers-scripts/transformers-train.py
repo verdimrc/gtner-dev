@@ -41,12 +41,12 @@ if __name__ == "__main__":
 
         # (Train + evaluate) requested
         if args.dev != "":
-            cmd_opts += ["--do-eval", "--evaluate_during_train"]
+            cmd_opts += ["--do_eval", "--evaluate_during_train"]
             os.link(
                 os.path.join(args.dev, "dev.txt"), os.path.join(args.train, "dev.txt")
             )  # Copy (by hard link) the dev data to match with what run_ner.py expects.
 
-        label = ["--label", args.label] if args.label else []
+        label = ["--label", os.path.join(args.label, "label.txt")] if args.label else []
         model_dir = ("--output_dir", args.model_dir)
 
         # Recommended additional args: --model_type, --model_name_or_path, --num_train_epochs
