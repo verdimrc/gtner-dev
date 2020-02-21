@@ -111,7 +111,7 @@ class LabelCollector(object):
             try:
                 i = line.rindex(' ') + 1
             except:
-                continue
+                pass
             else:
                 self._labels.add(line[i:].rstrip())
             yield line
