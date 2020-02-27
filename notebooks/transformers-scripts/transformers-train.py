@@ -3,50 +3,50 @@ import os
 import shutil
 import sys
 
-import run_ner
+# try block to prevent isort shifting the import statements.
+# See also: https://github.com/timothycrosley/isort/issues/295#issuecomment-570898035
+try:
+    #### Make tqdm more quiet ####
+    # This stanza must appear before `import run_ner` or any module that uses tqdm.
+    # https://github.com/tqdm/tqdm/issues/619#issuecomment-425234504
+    import tqdm
 
-#### Make tqdm more quiet ####
-# This stanza must appear before `import run_ner` or any module that uses tqdm.
-# https://github.com/tqdm/tqdm/issues/619#issuecomment-425234504
-import tqdm
+    # This doesn't work, and left here as trail, even if transformers/file_utils.py indicates so.
+    # import logging
+    # logging.getLogger('transformers.file_utils').setLevel(logging.NOTSET)
+    from tqdm import auto as tqdm_auto  # Used by transformers's model downloader (transformers/file_utils.py:http_get)
 
-# This doesn't work, and left here as trail, even if transformers/file_utils.py indicates so.
-# import logging
-# logging.getLogger('transformers.file_utils').setLevel(logging.NOTSET)
-from tqdm import auto as tqdm_auto  # Used by transformers's model downloader (transformers/file_utils.py:http_get)
+    old_auto_tqdm = tqdm_auto.tqdm
 
-old_auto_tqdm = tqdm_auto.tqdm
+    def nop_tqdm_off(*a, **k):
+        k["disable"] = True
+        return old_auto_tqdm(*a, **k)
 
+    tqdm_auto.tqdm = (
+        nop_tqdm_off  # For download, completely disable progress bars: large models, lots of stuffs printed.
+    )
 
-def nop_tqdm_off(*a, **k):
-    k["disable"] = True
-    return old_auto_tqdm(*a, **k)
+    # Used by run_ner.py
+    old_tqdm = tqdm.tqdm
 
+    def nop_tqdm(*a, **k):
+        k["ncols"] = 0
+        return old_tqdm(*a, **k)
 
-tqdm_auto.tqdm = nop_tqdm_off  # For download, completely disable progress bars: large models, lots of stuffs printed.
+    tqdm.tqdm = nop_tqdm
 
-# Used by run_ner.py
-old_tqdm = tqdm.tqdm
+    # Used by run_ner.py
+    old_trange = tqdm.trange
 
+    def nop_trange(*a, **k):
+        k["ncols"] = 0
+        return old_trange(*a, **k)
 
-def nop_tqdm(*a, **k):
-    k["ncols"] = 0
-    return old_tqdm(*a, **k)
-
-
-tqdm.tqdm = nop_tqdm
-
-# Used by run_ner.py
-old_trange = tqdm.trange
-
-
-def nop_trange(*a, **k):
-    k["ncols"] = 0
-    return old_trange(*a, **k)
-
-
-tqdm.trange = nop_trange
-#### End of quiet tqdm ####
+    tqdm.trange = nop_trange
+    #### End of quiet tqdm ####
+    import run_ner
+except:  # noqa: E722
+    raise
 
 
 def assert_train_args(args):
