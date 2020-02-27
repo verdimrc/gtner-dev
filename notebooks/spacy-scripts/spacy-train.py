@@ -2,20 +2,22 @@ import argparse
 import os
 from itertools import chain
 from pathlib import Path
+from shutil import rmtree
+from typing import Any, Dict
 
 # Make spacy.convert & spacy.train output plain log.
 os.environ["ANSI_COLORS_DISABLE"] = "1"
 os.environ["WASABI_NO_PRETTY"] = "1"
 os.environ["WASABI_LOG_FRIENDLY"] = "1"
 
-# Additional setting for spacy.train
+# Additional setting for spacy.train to make its log plain.
 os.environ["LOG_FRIENDLY"] = "1"
 
 # For the plain log setting to take effect, import spacy only after the env. vars.
 from spacy.cli import convert, train  # isort:skip  # noqa:E402
 
 
-def parse_hyperparameters(hm):
+def parse_hyperparameters(hm) -> Dict[str, Any]:
     """Convert list of ['--name', 'value', ...] to { 'name': value}, where 'value' is converted to the nearest data type.
 
     Conversion follows the principle: "if it looks like a duck and quacks like a duck, then it must be a duck".
@@ -91,8 +93,14 @@ if __name__ == "__main__":
             n_sents=10,
         )
 
-    train_args = parse_hyperparameters(train_args)
-    assert_train_args(train_args)
-    train(
-        lang="en", pipeline="ner", output_path=args.model_dir, train_path=args.train, dev_path=args.test, **train_args
-    )
+    # Start training
+    hyperopts = parse_hyperparameters(train_args)
+    assert_train_args(hyperopts)
+    print("spacy train with hyperparameters", hyperopts)
+    train(lang="en", pipeline="ner", output_path=args.model_dir, train_path=args.train, dev_path=args.test, **hyperopts)
+
+    # model.tar.gz to contain just model-final/.
+    for d in args.model_dir.iterdir():
+        if d.name == "model-final":
+            continue
+        rmtree(d)
