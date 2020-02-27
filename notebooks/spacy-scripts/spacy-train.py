@@ -100,6 +100,7 @@ if __name__ == "__main__":
     train(lang="en", pipeline="ner", output_path=args.model_dir, train_path=args.train, dev_path=args.test, **hyperopts)
 
     # model.tar.gz to contain just model-final/.
+    # And just fyi., after training, model_dir/ will contains: model-final/, model-best/, model0/, model1/, ...
     for d in args.model_dir.iterdir():
         if d.name == "model-final":
             continue

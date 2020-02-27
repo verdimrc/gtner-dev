@@ -1,7 +1,9 @@
 import argparse
 import os
+import shutil
 import sys
-from pathlib import Path
+
+import run_ner
 
 #### Make tqdm more quiet ####
 # This stanza must appear before `import run_ner` or any module that uses tqdm.
@@ -9,31 +11,42 @@ from pathlib import Path
 import tqdm
 
 # This doesn't work, and left here as trail, even if transformers/file_utils.py indicates so.
-#import logging
-#logging.getLogger('transformers.file_utils').setLevel(logging.NOTSET)
+# import logging
+# logging.getLogger('transformers.file_utils').setLevel(logging.NOTSET)
 from tqdm import auto as tqdm_auto  # Used by transformers's model downloader (transformers/file_utils.py:http_get)
+
 old_auto_tqdm = tqdm_auto.tqdm
+
+
 def nop_tqdm_off(*a, **k):
-    k['disable'] = True
+    k["disable"] = True
     return old_auto_tqdm(*a, **k)
+
+
 tqdm_auto.tqdm = nop_tqdm_off  # For download, completely disable progress bars: large models, lots of stuffs printed.
 
 # Used by run_ner.py
 old_tqdm = tqdm.tqdm
+
+
 def nop_tqdm(*a, **k):
-    k['ncols'] = 0
+    k["ncols"] = 0
     return old_tqdm(*a, **k)
-tqdm.tqdm=nop_tqdm
+
+
+tqdm.tqdm = nop_tqdm
 
 # Used by run_ner.py
 old_trange = tqdm.trange
-def nop_trange(*a, **k):
-    k['ncols'] = 0
-    return old_trange(*a, **k)
-tqdm.trange=nop_trange
-#### End of quiet tqdm ####
 
-import run_ner
+
+def nop_trange(*a, **k):
+    k["ncols"] = 0
+    return old_trange(*a, **k)
+
+
+tqdm.trange = nop_trange
+#### End of quiet tqdm ####
 
 
 def assert_train_args(args):
@@ -77,7 +90,7 @@ if __name__ == "__main__":
                     os.path.join(args.dev, "dev.txt"), os.path.join(args.train, "dev.txt")
                 )  # Copy (by hard link) the dev data to match with what run_ner.py expects.
             except FileExistsError:
-                print(os.path.join(args.dev, "dev.txt"), ' already exists; skip hard linking')
+                print(os.path.join(args.dev, "dev.txt"), " already exists; skip hard linking")
 
         label = ["--label", os.path.join(args.label, "label.txt")] if args.label else []
         model_dir = ("--output_dir", args.model_dir)
@@ -87,3 +100,31 @@ if __name__ == "__main__":
 
     print(sys.argv)
     run_ner.main()
+
+    # After training, model artifacts go to model.tar.gz, while tensorboard data goes to output.tar.gz.
+    # To recap, here's the directory structure after training:
+    #
+    # /opt/ml
+    # ├── code
+    # │   ├── [content of sourcedir.tar.gz]
+    # │   └── runs
+    # │       └── Feb27_08-45-03_49c1d0103e10
+    # │           └── events.out.tfevents.1582793103.49c1d0103e10.292.0
+    # ├── input
+    # │   └── train
+    # │       ├── cached_dev_bert-base-cased_128
+    # │       ├── cached_train_bert-base-cased_128
+    # │       ├── dev.txt
+    # │       └── train.txt
+    # └── model
+    #     ├── config.json
+    #     ├── pytorch_model.bin
+    #     ├── special_tokens_map.json
+    #     ├── tokenizer_config.json
+    #     ├── training_args.bin
+    #     └── vocab.txt
+    #
+    # The tensorboard data is /opt/ml/runs, and to let SageMaker knows that it should become output.tar.gz, we need to
+    # move it to $SM_OUTPUT_DATA_DIR (e.g., /opt/ml/output/data/algo-1; however it's best to read from the env. var).
+    output_data_dir = os.environ.get("SM_OUTPUT_DATA_DIR", "output")
+    shutil.move("./runs", output_data_dir)  # $SM_OUTPUT_DATA_DIR/runs/Feb27.../events.out...
