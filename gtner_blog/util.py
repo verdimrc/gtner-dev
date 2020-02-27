@@ -1,5 +1,6 @@
 import xmlrpc.client
-from typing import Generator, Iterable, Iterator, List, Tuple, Union
+from typing import Iterable, Iterator, List
+
 import s3fs
 
 ################################################################################
@@ -10,6 +11,7 @@ _fs = s3fs.S3FileSystem(anon=False)
 
 Token_t = str
 Sentence_t = List[Token_t]
+
 
 class SplitRecord(object):
     def __init__(self, group: int, sentence: Sentence_t):
@@ -82,12 +84,12 @@ def bilou2bio(it: Iterable[Token_t]) -> Iterator[str]:
     conversion_table = {"L": "I", "U": "B"}
     for line in it:
         try:
-            i = line.rindex(' ') + 1
+            i = line.rindex(" ") + 1
         except:
             yield line
         else:
             c = line[i]
-            line = line[:i] + conversion_table.get(c, c) + line[i+1:]
+            line = line[:i] + conversion_table.get(c, c) + line[i + 1 :]
             yield line
 
 
@@ -109,7 +111,7 @@ class LabelCollector(object):
         """Observe the label in each line, then yield the line as it is."""
         for line in it:
             try:
-                i = line.rindex(' ') + 1
+                i = line.rindex(" ") + 1
             except:
                 pass
             else:
